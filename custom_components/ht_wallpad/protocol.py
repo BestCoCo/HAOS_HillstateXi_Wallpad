@@ -136,7 +136,7 @@ class WallpadState:
     fan_on: bool | None = None
     fan_speed: int | None = None
     ev_calling: bool | None = None
-    ev_status: int | None = None  # 00 대기 / a6 이동 / b6 출발·감속 / 01 도착
+    ev_status: int | None = None  # 00 대기 / a6 상승 / b6 하강(·정지) / 01 도착
     ev_floor: str | None = None
     batch_off: bool | None = None  # 일괄소등 설정
     hall_pressed: bool | None = None

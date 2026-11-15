@@ -7,7 +7,7 @@ from homeassistant.const import UnitOfPower
 from .const import DOMAIN, OUTLETS_PER_ROOM
 from .entity import WallpadEntity
 
-EV_STATUS = {0x00: "대기", 0xA6: "이동 중", 0xB6: "출발/감속", 0x01: "도착"}
+EV_STATUS = {0x00: "대기", 0xA6: "상승 중", 0xB6: "하강 중", 0x01: "도착"}
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -41,7 +41,7 @@ class OutletWatt(WallpadEntity, SensorEntity):
 
 
 class ElevatorFloor(WallpadEntity, SensorEntity):
-    """월패드 엘리베이터 화면을 볼 때(호출 중)만 값이 들어온다."""
+    """호출 중일 때 약 2초마다 현재 층이 들어온다 (호출이 없으면 없음)."""
     _signal = "elevator"
     _attr_icon = "mdi:elevator"
 
