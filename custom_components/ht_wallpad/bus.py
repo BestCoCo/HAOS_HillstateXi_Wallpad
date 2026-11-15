@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
+import socket
 from collections.abc import Callable
 
 from .protocol import extract_frames
@@ -12,10 +13,17 @@ _LOGGER = logging.getLogger(__name__)
 
 Predicate = Callable[[bytes], bool]
 
+IDLE_TIMEOUT = 15  # 이 시간 동안 데이터가 없으면 끊긴 연결로 보고 다시 연결 (월패드는 ~1초마다 폴링)
+MAX_BACKOFF = 30
+
 
 class Ew11Bus:
-    def __init__(self, name: str, host: str, port: int, on_frame: Callable[[str, bytes], None]) -> None:
+    def __init__(
+        self, name: str, host: str, port: int, on_frame: Callable[[str, bytes], None],
+        on_status: Callable[[str, bool], None] | None = None,
+    ) -> None:
         self.name = name
+        self._on_status = on_status
         self.host = host
         self.port = port
         self._on_frame = on_frame
@@ -39,14 +47,21 @@ class Ew11Bus:
         while True:
             try:
                 reader, self._writer = await asyncio.wait_for(asyncio.open_connection(self.host, self.port), 10)
-                self.connected = True
-                backoff = 2
+                self._keepalive(self._writer)
                 _LOGGER.info("EW11 %s(%s) 연결됨", self.name, self.host)
                 buf = bytearray()
+                got_data = False
                 while True:
-                    data = await asyncio.wait_for(reader.read(1024), 60)
+                    try:
+                        data = await asyncio.wait_for(reader.read(1024), IDLE_TIMEOUT)
+                    except TimeoutError as err:
+                        raise ConnectionError(f"{IDLE_TIMEOUT}초 동안 수신 없음") from err
                     if not data:
                         raise ConnectionError("연결 끊김")
+                    if not got_data:
+                        got_data = True
+                        backoff = 2
+                        self._set_connected(True)
                     buf += data
                     for frame in extract_frames(buf):
                         self._dispatch(frame)
@@ -55,12 +70,31 @@ class Ew11Bus:
             except Exception as err:  # noqa: BLE001
                 _LOGGER.warning("EW11 %s(%s) 연결 오류: %s — %s초 후 재접속", self.name, self.host, err, backoff)
             finally:
-                self.connected = False
+                self._set_connected(False)
                 if self._writer:
                     self._writer.close()
                     self._writer = None
             await asyncio.sleep(backoff)
-            backoff = min(backoff * 2, 60)
+            backoff = min(backoff * 2, MAX_BACKOFF)
+
+    def _set_connected(self, value: bool) -> None:
+        if self.connected != value:
+            self.connected = value
+            if self._on_status:
+                self._on_status(self.name, value)
+
+    @staticmethod
+    def _keepalive(writer: asyncio.StreamWriter) -> None:
+        sock = writer.get_extra_info("socket")
+        if sock is None:
+            return
+        try:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+            for opt, val in (("TCP_KEEPIDLE", 10), ("TCP_KEEPALIVE", 10), ("TCP_KEEPINTVL", 5), ("TCP_KEEPCNT", 3)):
+                if hasattr(socket, opt):
+                    sock.setsockopt(socket.IPPROTO_TCP, getattr(socket, opt), val)
+        except OSError:
+            pass
 
     def _dispatch(self, frame: bytes) -> None:
         for pred, fut in list(self._waiters):

@@ -77,9 +77,9 @@ class Wallpad:
         self._devices["fan"] = ("월패드 환기", conf["fan_area"])
         self._devices["main"] = ("월패드", conf["main_area"])
         port = conf[CONF_PORT]
-        self.ev = Ew11Bus("elevator", conf[CONF_ELEVATOR_HOST], port, self._on_frame)
-        self.light = Ew11Bus("light", conf[CONF_LIGHT_HOST], port, self._on_frame)
-        self.heat = Ew11Bus("heat", conf[CONF_HEAT_HOST], port, self._on_frame)
+        self.ev = Ew11Bus("elevator", conf[CONF_ELEVATOR_HOST], port, self._on_frame, self._on_status)
+        self.light = Ew11Bus("light", conf[CONF_LIGHT_HOST], port, self._on_frame, self._on_status)
+        self.heat = Ew11Bus("heat", conf[CONF_HEAT_HOST], port, self._on_frame, self._on_status)
         self.buses = [self.ev, self.light, self.heat]
 
     def device_meta(self, key: str) -> tuple[str, str | None]:
@@ -89,6 +89,11 @@ class Wallpad:
             _LOGGER.warning("영역 '%s'이(가) HA에 없어 '%s' 기기는 영역 없이 만듭니다", area, name)
             area = None
         return name, area
+
+    def _on_status(self, bus: str, connected: bool) -> None:
+        if not connected:
+            _LOGGER.warning("EW11 %s 연결 끊김 — 자동 재접속 중", bus)
+        self.hass.loop.call_soon_threadsafe(async_dispatcher_send, self.hass, f"{SIGNAL_UPDATE}_conn")
 
     def _on_frame(self, bus: str, frame: bytes) -> None:
         changed, events = self.parser.feed(frame)
