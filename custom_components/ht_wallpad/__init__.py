@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import logging
+import time
 
 import voluptuous as vol
 
@@ -79,6 +80,9 @@ class Wallpad:
         self.light = Ew11Bus("light", data[CONF_LIGHT_HOST], port, self._on_frame, self._on_status)
         self.heat = Ew11Bus("heat", data[CONF_HEAT_HOST], port, self._on_frame, self._on_status)
         self.buses = [self.ev, self.light, self.heat]
+        self.unlock_until = 0.0
+        self.intentional_until = 0.0
+        self._restoring: dict[tuple[int, str], float] = {}
 
     def device_meta(self, key: str) -> tuple[str, str | None]:
         """기기 이름과 영역. 영역은 HA에 이미 있는 이름일 때만 돌려준다 (새 영역을 만들지 않음)."""
@@ -95,10 +99,59 @@ class Wallpad:
 
     def _on_frame(self, bus: str, frame: bytes) -> None:
         changed, events = self.parser.feed(frame)
+        if "outlet" in changed and self.protected:
+            self._guard_protected()
         for name in changed:
             async_dispatcher_send(self.hass, f"{SIGNAL_UPDATE}_{name}")
         for kind, data in events:
             self.hass.bus.async_fire(EVENT, {"type": kind, **data})
+
+
+    def _guard_protected(self) -> None:
+        """보호 콘센트가 HA 밖(월패드·웹·벽 스위치)에서 꺼지거나 자동차단이 켜지면 바로 되돌린다."""
+        if time.monotonic() < self.intentional_until:
+            return
+        for oid in self.protected:
+            o = self.state.outlets.get(oid)
+            if o is None:
+                continue
+            if o.on is False:
+                self._restore(oid, "power", p.outlet_power_cmd(oid, True), lambda f, i=oid: self._ok(f, i, 0x40, p.ON))
+            if o.auto is True:
+                self._restore(oid, "mode", p.outlet_mode_cmd(oid, False), lambda f, i=oid: self._ok(f, i, 0x57, p.OUTLET_MANUAL))
+
+    @staticmethod
+    def _ok(f: bytes, oid: int, kind: int, want: int) -> bool:
+        if f[3] != p.DEV_OUTLET or f[4] != p.CMD_REPLY:
+            return False
+        if f[6] == oid and f[5] == kind:
+            return f[8] == want
+        if f[6] == oid & 0xF0 and f[7] == 0x00:
+            d = f[8:-2]
+            for k in range(0, len(d) - 8, 9):
+                if d[k] == oid:
+                    return d[k + (1 if kind == 0x40 else 8)] == want
+        return False
+
+    def _restore(self, oid: int, what: str, packet: bytes, verify) -> None:
+        key = (oid, what)
+        now = time.monotonic()
+        if now - self._restoring.get(key, 0) < 15:  # 같은 복구를 15초 안에 반복하지 않음
+            return
+        self._restoring[key] = now
+        label = {"power": "전원 차단", "mode": "자동차단(대기) 켜짐"}[what]
+        _LOGGER.warning("보호 콘센트 %02x %s 감지 → 되돌림", oid, label)
+
+        async def run() -> None:
+            ok = await self.light.send(packet, sync=lambda f: p.is_reply(f, p.DEV_OUTLET, oid & 0xF0), verify=verify)
+            msg = f"보호 콘센트 {oid:02x}: HA 밖에서 {label} → {'자동으로 되돌렸습니다' if ok else '되돌리기 실패! 확인 필요'}"
+            self.hass.bus.async_fire(EVENT, {"type": "protected_outlet_restored", "outlet": f"{oid:02x}",
+                                             "what": what, "ok": ok})
+            self.hass.async_create_task(self.hass.services.async_call(
+                "persistent_notification", "create",
+                {"title": "월패드 보호 콘센트", "message": msg, "notification_id": f"ht_wallpad_protect_{oid:02x}"}))
+
+        self.entry.async_create_background_task(self.hass, run(), f"ht_wallpad_restore_{oid:02x}_{what}")
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:

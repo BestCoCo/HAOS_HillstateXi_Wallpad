@@ -42,6 +42,7 @@ def _guard(wp, name: str) -> None:
             f"'보호 콘센트 잠금 해제'를 켠 뒤 {UNLOCK_SECONDS}초 안에 다시 누르세요."
         )
     wp.unlock_until = 0  # 한 번 실행하면 바로 다시 잠금
+    wp.intentional_until = time.monotonic() + 300  # 5분 동안은 자동 복구하지 않음
     for cb in list(getattr(wp, "unlock_listeners", [])):
         cb()
 
