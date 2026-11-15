@@ -13,8 +13,8 @@ from .entity import WallpadEntity
 SPEEDS = [p.FAN_LOW, p.FAN_MID, p.FAN_HIGH]
 
 
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    async_add_entities([WallpadFan(hass.data[DOMAIN])])
+async def async_setup_entry(hass, entry, async_add_entities):
+    async_add_entities([WallpadFan(hass.data[DOMAIN][entry.entry_id])])
 
 
 class WallpadFan(WallpadEntity, FanEntity):

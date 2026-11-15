@@ -8,8 +8,8 @@ from .const import DOMAIN
 from .entity import WallpadEntity
 
 
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    wp = hass.data[DOMAIN]
+async def async_setup_entry(hass, entry, async_add_entities):
+    wp = hass.data[DOMAIN][entry.entry_id]
     async_add_entities([ElevatorCalling(wp), BatchOff(wp)] + [Ew11Connected(wp, b) for b in wp.buses])
 
 

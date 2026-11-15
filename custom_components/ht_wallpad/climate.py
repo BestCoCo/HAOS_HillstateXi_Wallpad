@@ -9,8 +9,8 @@ from .const import DOMAIN
 from .entity import WallpadEntity
 
 
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    wp = hass.data[DOMAIN]
+async def async_setup_entry(hass, entry, async_add_entities):
+    wp = hass.data[DOMAIN][entry.entry_id]
     async_add_entities(
         WallpadHeat(wp, rid, rname, heat) for rid, rname, _g, _c, heat in wp.rooms if heat is not None
     )

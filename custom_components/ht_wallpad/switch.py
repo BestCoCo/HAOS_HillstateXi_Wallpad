@@ -12,8 +12,8 @@ from .entity import WallpadEntity
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    wp = hass.data[DOMAIN]
+async def async_setup_entry(hass, entry, async_add_entities):
+    wp = hass.data[DOMAIN][entry.entry_id]
     ents = []
     for rid, rname, group, _c, _h in wp.rooms:
         for n in range(1, OUTLETS_PER_ROOM + 1):

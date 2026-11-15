@@ -10,8 +10,8 @@ from .entity import WallpadEntity
 EV_STATUS = {0x00: "대기", 0xA6: "이동 중", 0xB6: "출발/감속", 0x01: "도착"}
 
 
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    wp = hass.data[DOMAIN]
+async def async_setup_entry(hass, entry, async_add_entities):
+    wp = hass.data[DOMAIN][entry.entry_id]
     ents: list = [ElevatorFloor(wp), ElevatorStatus(wp)]
     for rid, rname, group, _c, _h in wp.rooms:
         for n in range(1, OUTLETS_PER_ROOM + 1):

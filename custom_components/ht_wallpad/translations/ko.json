@@ -1,0 +1,57 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "현대HT 월패드 (EW11)",
+        "description": "EW11 3대의 주소를 입력하세요 (TCP Server, 포트 8899).",
+        "data": {
+          "elevator_host": "EW11 1 — 일괄·엘리베이터 (RS-485 1A/1B)",
+          "light_host": "EW11 2 — 조명·콘센트 (RS-485 2A/2B)",
+          "heat_host": "EW11 3 — 난방·환기 (RS-485 3A/3B)",
+          "port": "포트"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "이 주소의 EW11 에 연결할 수 없습니다"
+    },
+    "abort": {
+      "already_configured": "이미 설정되어 있습니다"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "월패드 구성",
+        "menu_options": {
+          "rooms": "방 배치 · 보호 콘센트 · 영역",
+          "hosts": "EW11 주소"
+        }
+      },
+      "rooms": {
+        "title": "방 배치",
+        "description": "한 줄에 방 하나: id | 이름 | 영역 | 조명그룹 | 회로이름(쉼표) | 난방번호\n예) geosil | 거실 | 거실 | 10 | 1,2,복도 | 11\n조명그룹·난방번호는 16진수 두 자리, 난방이 없으면 비움. 영역은 HA에 이미 있는 이름만 적용됩니다.",
+        "data": {
+          "rooms_text": "방 배치",
+          "protected_outlets": "차단 스위치를 만들지 않을 콘센트 번호 (쉼표, 예 51,52)",
+          "fan_area": "환기 기기 영역",
+          "main_area": "엘리베이터·일괄 기기 영역"
+        }
+      },
+      "hosts": {
+        "title": "EW11 주소",
+        "data": {
+          "elevator_host": "EW11 1 — 일괄·엘리베이터",
+          "light_host": "EW11 2 — 조명·콘센트",
+          "heat_host": "EW11 3 — 난방·환기",
+          "port": "포트"
+        }
+      }
+    },
+    "error": {
+      "invalid_rooms": "방 배치 형식이 잘못되었습니다 (줄마다 id | 이름 | 영역 | 조명그룹 | 회로 | 난방)",
+      "invalid_hex": "16진수 번호를 쉼표로 적어 주세요 (예 51,52)",
+      "cannot_connect": "이 주소의 EW11 에 연결할 수 없습니다"
+    }
+  }
+}

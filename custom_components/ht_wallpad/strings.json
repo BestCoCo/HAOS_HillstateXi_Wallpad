@@ -1,0 +1,57 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Hyundai HT wallpad (EW11)",
+        "description": "Enter the three EW11 addresses (TCP Server, port 8899).",
+        "data": {
+          "elevator_host": "EW11 #1 — batch switch / elevator",
+          "light_host": "EW11 #2 — lights / outlets",
+          "heat_host": "EW11 #3 — heating / ventilation",
+          "port": "Port"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to the EW11 at this address"
+    },
+    "abort": {
+      "already_configured": "Already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Wallpad options",
+        "menu_options": {
+          "rooms": "Rooms, protected outlets, areas",
+          "hosts": "EW11 addresses"
+        }
+      },
+      "rooms": {
+        "title": "Rooms",
+        "description": "One room per line: id | name | area | light group | circuit names (comma) | heating no.\ne.g. living | Living | Living | 10 | 1,2,3 | 11\nHex numbers; leave heating empty if none. Only existing HA areas are applied.",
+        "data": {
+          "rooms_text": "Rooms",
+          "protected_outlets": "Outlets without a cut-off switch (hex, comma)",
+          "fan_area": "Ventilation device area",
+          "main_area": "Elevator / batch device area"
+        }
+      },
+      "hosts": {
+        "title": "EW11 addresses",
+        "data": {
+          "elevator_host": "EW11 #1",
+          "light_host": "EW11 #2",
+          "heat_host": "EW11 #3",
+          "port": "Port"
+        }
+      }
+    },
+    "error": {
+      "invalid_rooms": "Invalid room lines",
+      "invalid_hex": "Use comma-separated hex numbers (e.g. 51,52)",
+      "cannot_connect": "Cannot connect to the EW11 at this address"
+    }
+  }
+}
