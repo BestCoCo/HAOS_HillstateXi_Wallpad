@@ -1,0 +1,11 @@
+{
+  "domain": "ht_wallpad",
+  "name": "현대HT 월패드 (EW11 RS485)",
+  "codeowners": ["@BestCoCo"],
+  "dependencies": [],
+  "documentation": "https://github.com/BestCoCo/HAOS_HillstateXi_Wallpad",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/BestCoCo/HAOS_HillstateXi_Wallpad/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}
