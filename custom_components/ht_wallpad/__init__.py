@@ -7,6 +7,7 @@ import voluptuous as vol
 
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP, Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.dispatcher import async_dispatcher_send
@@ -82,7 +83,12 @@ class Wallpad:
         self.buses = [self.ev, self.light, self.heat]
 
     def device_meta(self, key: str) -> tuple[str, str | None]:
-        return self._devices.get(key, ("월패드", None))
+        """기기 이름과 영역. 영역은 HA에 이미 있는 이름일 때만 돌려준다 (새 영역을 만들지 않음)."""
+        name, area = self._devices.get(key, ("월패드", None))
+        if area and ar.async_get(self.hass).async_get_area_by_name(area) is None:
+            _LOGGER.warning("영역 '%s'이(가) HA에 없어 '%s' 기기는 영역 없이 만듭니다", area, name)
+            area = None
+        return name, area
 
     def _on_frame(self, bus: str, frame: bytes) -> None:
         changed, events = self.parser.feed(frame)
