@@ -113,6 +113,35 @@ class Ew11Bus:
         finally:
             self._waiters.remove(item)
 
+    async def send_before(self, packet: bytes, after: Predicate, verify: Predicate,
+                          delays: list[float], verify_timeout: float = 4.0) -> bool:
+        """after 프레임이 지나간 뒤 delays[i] 초에 보내고(다음 폴링 직전), verify 가 오면 성공."""
+        async with self._send_lock:
+            for attempt, delay in enumerate(delays, 1):
+                if not self._writer:
+                    await asyncio.sleep(2)
+                    continue
+                if await self.wait_for(after, 5) is None:
+                    continue
+                await asyncio.sleep(delay)
+                fut: asyncio.Future = asyncio.get_running_loop().create_future()
+                item = (verify, fut)
+                self._waiters.append(item)
+                try:
+                    self._writer.write(packet)
+                    await self._writer.drain()
+                    await asyncio.wait_for(fut, verify_timeout)
+                    _LOGGER.info("미리 보내기 성공 %s (%d회, %.2f초)", self.name, attempt, delay)
+                    return True
+                except TimeoutError:
+                    continue
+                except Exception as err:  # noqa: BLE001
+                    _LOGGER.warning("전송 오류 %s: %s", self.name, err)
+                finally:
+                    self._waiters.remove(item)
+            _LOGGER.warning("미리 보내기 실패 %s (%d회)", self.name, len(delays))
+            return False
+
     async def send(self, packet: bytes, sync: Predicate, verify: Predicate, retries: int = 8) -> bool:
         """대상 기기의 응답(sync)이 지나간 직후에 보내고, verify 조건 프레임이 오면 성공."""
         async with self._send_lock:

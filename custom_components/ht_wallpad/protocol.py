@@ -108,6 +108,11 @@ def fan_speed_cmd(speed: int, sub: int = 0x11) -> bytes:
     return build(DEV_FAN, CMD_CONTROL, 0x42, sub, speed, 0x00)
 
 
+def elevator_call_reply() -> bytes:
+    """일괄 스위치가 보내는 '엘리베이터 호출' 응답. 월패드가 엘리베이터를 묻기 직전에 미리 보내면 접수된다."""
+    return build(DEV_ELEVATOR, CMD_REPLY, 0x41, 0x10, 0x00, 0x06)
+
+
 # ---------------------------------------------------------------- 상태
 @dataclass
 class OutletState:
