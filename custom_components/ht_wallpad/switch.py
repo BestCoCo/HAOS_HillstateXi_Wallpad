@@ -48,8 +48,8 @@ def outlet_verify(group: int, n: int, field: str, want: int):
 class _Outlet(WallpadEntity, SwitchEntity):
     _signal = "outlet"
 
-    def __init__(self, wp, oid_str, name, group, n) -> None:
-        super().__init__(wp, oid_str, name, "switch")
+    def __init__(self, wp, oid_str, name, group, n, rid) -> None:
+        super().__init__(wp, oid_str, name, "switch", rid)
         self.group = group
         self.oid = group | n
         self.n = n
@@ -70,7 +70,7 @@ class OutletPower(_Outlet):
     _attr_icon = "mdi:power-socket-de"
 
     def __init__(self, wp, rid, rname, group, n) -> None:
-        super().__init__(wp, f"outlet_{rid}_{n}", f"{rname} 콘센트 {n}", group, n)
+        super().__init__(wp, f"outlet_{rid}_{n}", f"{rname} 콘센트 {n}", group, n, rid)
 
     @property
     def is_on(self):
@@ -91,7 +91,7 @@ class OutletAuto(_Outlet):
     _attr_icon = "mdi:power-sleep"
 
     def __init__(self, wp, rid, rname, group, n) -> None:
-        super().__init__(wp, f"outlet_{rid}_{n}_auto", f"{rname} 콘센트 {n} 자동차단", group, n)
+        super().__init__(wp, f"outlet_{rid}_{n}_auto", f"{rname} 콘센트 {n} 자동차단", group, n, rid)
 
     @property
     def is_on(self):

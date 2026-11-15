@@ -28,6 +28,7 @@ ROOM_SCHEMA = vol.Schema(
         vol.Required("light_group"): HEX,  # 예: "10"
         vol.Optional("lights", default=[]): vol.All(cv.ensure_list, [cv.string]),  # 회로 이름들
         vol.Optional("heat"): HEX,  # 예: "11"
+        vol.Optional("area"): cv.string,  # HA 영역 이름 (없으면 name)
     }
 )
 
@@ -47,6 +48,8 @@ CONFIG_SCHEMA = vol.Schema(
                 vol.Optional(CONF_PROTECTED_OUTLETS, default=[f"{x:02x}" for x in DEFAULT_PROTECTED_OUTLETS]):
                     vol.All(cv.ensure_list, [cv.string]),
                 vol.Optional(CONF_ROOMS): vol.All(cv.ensure_list, [ROOM_SCHEMA]),
+                vol.Optional("fan_area", default="거실"): cv.string,
+                vol.Optional("main_area", default="현관"): cv.string,
             }
         )
     },
@@ -64,13 +67,22 @@ class Wallpad:
             self.rooms = [
                 (r["id"], r["name"], r["light_group"], r["lights"], r.get("heat")) for r in conf[CONF_ROOMS]
             ]
+            areas = {r["id"]: r.get("area", r["name"]) for r in conf[CONF_ROOMS]}
         else:
             self.rooms = DEFAULT_ROOMS
+            areas = {rid: rname for rid, rname, *_ in DEFAULT_ROOMS}
+        names = {rid: rname for rid, rname, *_ in self.rooms}
+        self._devices = {rid: (f"월패드 {names[rid]}", areas[rid]) for rid in names}
+        self._devices["fan"] = ("월패드 환기", conf["fan_area"])
+        self._devices["main"] = ("월패드", conf["main_area"])
         port = conf[CONF_PORT]
         self.ev = Ew11Bus("elevator", conf[CONF_ELEVATOR_HOST], port, self._on_frame)
         self.light = Ew11Bus("light", conf[CONF_LIGHT_HOST], port, self._on_frame)
         self.heat = Ew11Bus("heat", conf[CONF_HEAT_HOST], port, self._on_frame)
         self.buses = [self.ev, self.light, self.heat]
+
+    def device_meta(self, key: str) -> tuple[str, str | None]:
+        return self._devices.get(key, ("월패드", None))
 
     def _on_frame(self, bus: str, frame: bytes) -> None:
         changed, events = self.parser.feed(frame)

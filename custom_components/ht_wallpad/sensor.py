@@ -26,7 +26,7 @@ class OutletWatt(WallpadEntity, SensorEntity):
     _attr_native_unit_of_measurement = UnitOfPower.WATT
 
     def __init__(self, wp, rid, rname, oid, n) -> None:
-        super().__init__(wp, f"outlet_{rid}_{n}_power", f"{rname} 콘센트 {n} 전력", "sensor")
+        super().__init__(wp, f"outlet_{rid}_{n}_power", f"{rname} 콘센트 {n} 전력", "sensor", rid)
         self.oid = oid
 
     @property

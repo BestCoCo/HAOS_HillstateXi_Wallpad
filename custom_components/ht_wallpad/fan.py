@@ -23,7 +23,7 @@ class WallpadFan(WallpadEntity, FanEntity):
     _attr_supported_features = FanEntityFeature.SET_SPEED | FanEntityFeature.TURN_ON | FanEntityFeature.TURN_OFF
 
     def __init__(self, wp) -> None:
-        super().__init__(wp, "fan", "환기", "fan")
+        super().__init__(wp, "fan", "환기", "fan", "fan")
         self._last_power = 0.0
 
     @property

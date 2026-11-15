@@ -28,7 +28,7 @@ class WallpadHeat(WallpadEntity, ClimateEntity):
     _attr_max_temp = 40
 
     def __init__(self, wp, rid, rname, room) -> None:
-        super().__init__(wp, f"heat_{rid}", f"{rname} 난방", "climate")
+        super().__init__(wp, f"heat_{rid}", f"{rname} 난방", "climate", rid)
         self.room = room
 
     @property

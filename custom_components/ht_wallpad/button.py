@@ -28,7 +28,7 @@ class RoomLightsOff(WallpadEntity, ButtonEntity):
     _attr_icon = "mdi:lightbulb-off"
 
     def __init__(self, wp, rid, rname, group) -> None:
-        super().__init__(wp, f"{rid}_lights_off", f"{rname} 조명 전체 끄기", "button")
+        super().__init__(wp, f"{rid}_lights_off", f"{rname} 조명 전체 끄기", "button", rid)
         self.group = group
 
     async def async_press(self) -> None:

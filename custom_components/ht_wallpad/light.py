@@ -39,7 +39,7 @@ class WallpadLight(WallpadEntity, LightEntity):
 
     def __init__(self, wp, rid, rname, group, idx, cname) -> None:
         label = f"{rname} 조명 {cname}" if cname.isdigit() else f"{rname} {cname}"
-        super().__init__(wp, f"{rid}_{idx}", label, "light")
+        super().__init__(wp, f"{rid}_{idx}", label, "light", rid)
         self.group = group
         self.idx = idx
         self.sub = group | idx

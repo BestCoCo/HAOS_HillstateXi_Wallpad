@@ -39,17 +39,22 @@ ht_wallpad:
   heat_host: 192.168.0.28       # EW11 3
   # port: 8899
   protected_outlets: ["51", "52"]   # 차단 스위치를 만들지 않을 콘센트 (예: 서버 전원)
+  fan_area: 거실                    # 환기 기기 영역
+  main_area: 현관                   # 엘리베이터·일괄소등 기기 영역
   rooms:                            # 생략하면 거실/침실1~3/알파룸/주방 기본값
     - id: living
       name: 거실
       light_group: "10"             # 16진수 문자열로 (따옴표 필수)
       lights: ["1", "2", "복도"]
       heat: "11"
+      area: 거실                    # HA 영역 이름 (생략하면 name)
     - id: kitchen
       name: 주방
       light_group: "60"
       lights: ["1", "2", "3"]
 ```
+
+방마다 `월패드 <방>` 기기가 생기고, 처음 생성될 때 해당 영역(area)에 자동으로 들어갑니다.
 
 ## 프로토콜 요약
 `F7 | 길이 | 01 | 기기 | 명령 | 종류 | 번호 | 데이터… | XOR | EE` — 명령 01 상태요청 / 02 제어 / 04 응답.
