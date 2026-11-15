@@ -11,6 +11,8 @@ from .const import DOMAIN, FAN_MIN_TOGGLE_SECONDS, FAN_SUB
 from .entity import WallpadEntity
 
 SPEEDS = [p.FAN_LOW, p.FAN_MID, p.FAN_HIGH]
+PRESETS = {"약": p.FAN_LOW, "중": p.FAN_MID, "강": p.FAN_HIGH}
+PRESET_OF = {v: k for k, v in PRESETS.items()}
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -20,7 +22,10 @@ async def async_setup_entry(hass, entry, async_add_entities):
 class WallpadFan(WallpadEntity, FanEntity):
     _signal = "fan"
     _attr_speed_count = 3
-    _attr_supported_features = FanEntityFeature.SET_SPEED | FanEntityFeature.TURN_ON | FanEntityFeature.TURN_OFF
+    _attr_supported_features = (
+        FanEntityFeature.SET_SPEED | FanEntityFeature.PRESET_MODE | FanEntityFeature.TURN_ON | FanEntityFeature.TURN_OFF
+    )
+    _attr_preset_modes = list(PRESETS)
 
     def __init__(self, wp) -> None:
         super().__init__(wp, "fan", "환기", "fan", "fan")
@@ -40,6 +45,19 @@ class WallpadFan(WallpadEntity, FanEntity):
             return 0
         sp = self.wp.state.fan_speed
         return {p.FAN_LOW: 33, p.FAN_MID: 66, p.FAN_HIGH: 100}.get(sp, 33)
+
+    @property
+    def preset_mode(self):
+        if not self.wp.state.fan_on:
+            return None
+        return PRESET_OF.get(self.wp.state.fan_speed)
+
+    async def async_set_preset_mode(self, preset_mode: str) -> None:
+        if preset_mode not in PRESETS:
+            return
+        if not self.wp.state.fan_on:
+            await self._power(True)
+        await self._speed(PRESETS[preset_mode])
 
     def _sync(self, f: bytes) -> bool:
         return p.is_reply(f, p.DEV_FAN, FAN_SUB)
@@ -64,7 +82,9 @@ class WallpadFan(WallpadEntity, FanEntity):
     async def async_turn_on(self, percentage=None, preset_mode=None, **kwargs) -> None:
         if not self.wp.state.fan_on:
             await self._power(True)
-        if percentage:
+        if preset_mode:
+            await self.async_set_preset_mode(preset_mode)
+        elif percentage:
             await self.async_set_percentage(percentage)
 
     async def async_turn_off(self, **kwargs) -> None:
