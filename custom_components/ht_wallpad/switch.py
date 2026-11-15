@@ -1,9 +1,15 @@
-"""대기전력 콘센트 (채널2): 차단/해제, 자동/수동. protected_outlets 에 넣은 콘센트는 스위치를 만들지 않음."""
+"""대기전력 콘센트 (채널2): 차단/해제, 자동/수동.
+
+보호 콘센트(protected_outlets, 예: 서버 전원)는 스위치를 만들되, 전원 차단·자동차단 켜기는
+"보호 콘센트 잠금 해제" 스위치를 먼저 켠 뒤 60초 안에만 실행된다 (실행 후 바로 다시 잠김).
+잠긴 상태에서 누르면 실행하지 않고 오류 메시지를 띄운다."""
 from __future__ import annotations
 
 import logging
+import time
 
 from homeassistant.components.switch import SwitchEntity
+from homeassistant.exceptions import HomeAssistantError
 
 from . import protocol as p
 from .const import DOMAIN, OUTLETS_PER_ROOM
@@ -18,12 +24,26 @@ async def async_setup_entry(hass, entry, async_add_entities):
     for rid, rname, group, _c, _h in wp.rooms:
         for n in range(1, OUTLETS_PER_ROOM + 1):
             oid = group | n
-            if oid in wp.protected:
-                _LOGGER.info("보호 콘센트 %02x(%s %d구)는 스위치를 만들지 않음", oid, rname, n)
-                continue
             ents.append(OutletPower(wp, rid, rname, group, n))
             ents.append(OutletAuto(wp, rid, rname, group, n))
+    if wp.protected:
+        ents.append(ProtectedUnlock(wp))
     async_add_entities(ents)
+
+
+UNLOCK_SECONDS = 60
+
+
+def _guard(wp, name: str) -> None:
+    """보호 콘센트의 위험한 동작 전에 호출. 잠겨 있으면 HomeAssistantError(화면에 메시지)."""
+    if time.monotonic() > getattr(wp, "unlock_until", 0):
+        raise HomeAssistantError(
+            f"{name}은(는) 보호된 콘센트입니다 (서버 등). "
+            f"'보호 콘센트 잠금 해제'를 켠 뒤 {UNLOCK_SECONDS}초 안에 다시 누르세요."
+        )
+    wp.unlock_until = 0  # 한 번 실행하면 바로 다시 잠금
+    for cb in list(getattr(wp, "unlock_listeners", [])):
+        cb()
 
 
 def outlet_verify(group: int, n: int, field: str, want: int):
@@ -84,6 +104,8 @@ class OutletPower(_Outlet):
         await self._set(True)
 
     async def async_turn_off(self, **kwargs) -> None:
+        if self.oid in self.wp.protected:
+            _guard(self.wp, self.name)
         await self._set(False)
 
 
@@ -102,7 +124,41 @@ class OutletAuto(_Outlet):
                                  verify=outlet_verify(self.group, self.n, "mode", p.OUTLET_AUTO if auto else p.OUTLET_MANUAL))
 
     async def async_turn_on(self, **kwargs) -> None:
+        if self.oid in self.wp.protected:
+            _guard(self.wp, self.name)
         await self._set(True)
 
     async def async_turn_off(self, **kwargs) -> None:
         await self._set(False)
+
+
+class ProtectedUnlock(WallpadEntity, SwitchEntity):
+    """켜면 60초 동안 보호 콘센트의 차단·자동차단 켜기를 허용. 시간이 지나거나 한 번 실행하면 자동으로 꺼짐."""
+    _attr_icon = "mdi:lock-open-alert"
+
+    def __init__(self, wp) -> None:
+        super().__init__(wp, "outlet_protect_unlock", "보호 콘센트 잠금 해제", "switch")
+        wp.unlock_until = 0
+        wp.unlock_listeners = [self._relocked]
+        self._cancel = None
+
+    @property
+    def is_on(self) -> bool:
+        return time.monotonic() < self.wp.unlock_until
+
+    def _relocked(self) -> None:
+        if self._cancel:
+            self._cancel()
+            self._cancel = None
+        self.async_write_ha_state()
+
+    async def async_turn_on(self, **kwargs) -> None:
+        self.wp.unlock_until = time.monotonic() + UNLOCK_SECONDS
+        if self._cancel:
+            self._cancel()
+        self._cancel = self.hass.loop.call_later(UNLOCK_SECONDS + 0.5, self.async_write_ha_state).cancel
+        self.async_write_ha_state()
+
+    async def async_turn_off(self, **kwargs) -> None:
+        self.wp.unlock_until = 0
+        self._relocked()
